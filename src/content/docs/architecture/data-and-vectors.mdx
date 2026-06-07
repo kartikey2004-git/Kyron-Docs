@@ -1,0 +1,103 @@
+---
+title: "Data & Vectors"
+description: "Understanding the database schema and vector similarity search."
+sidebar:
+  order: 2
+---
+
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The platform relies on a combination of relational data and high-dimensional vector embeddings to provide intelligent code reviews.
+
+## Database Schema (ER Diagram)
+
+We use **Prisma** as our ORM and **PostgreSQL** as the primary data store.
+
+## Database Schema
+
+```text 
+┌──────────────┐
+│     User     │
+└──────┬───────┘
+       │
+       ▼
+
+┌──────────────┐    ┌──────────────┐    ┌──────────────────┐
+│   Session    │    │   Account    │    │    Repository    │
+├──────────────┤    ├──────────────┤    ├──────────────────┤
+│ id           │    │ id           │    │ id               │
+│ userId       │    │ userId       │    │ userId           │
+│ token        │    │ provider     │    │ githubId         │
+│ expiresAt    │    │ tokens...    │    │ owner            │
+└──────────────┘    └──────────────┘    │ name             │
+                                        │ fullName         │
+                                        └────────┬─────────┘
+                                                 │
+                                                 ▼
+
+                    ┌──────────────────┐    ┌──────────────────┐
+                    │      Review      │    │    CodeChunk     │
+                    ├──────────────────┤    ├──────────────────┤
+                    │ id               │    │ id               │
+                    │ repositoryId     │    │ repositoryId     │
+                    │ prNumber         │    │ filePath         │
+                    │ status           │    │ startLine        │
+                    │ review           │    │ endLine          │
+                    └──────────────────┘    │ language         │
+                                            │ signature        │
+                                            │ embedding        │
+                                            └──────────────────┘
+```
+
+```text
+┌──────┐
+│ User │
+└──┬───┘
+   │
+   ├─────────────────┬─────────────────┬─────────────────►
+   │                 │                 │
+   ▼                 ▼                 ▼
+
+┌─────────┐    ┌─────────┐    ┌─────────────────┐
+│ Session │    │ Account │    │   Repository    │
+└─────────┘    └─────────┘    └────────┬────────┘
+                                       │
+                     ┌─────────────────┴─────────────────┐
+                     │                                   │
+                     ▼                                   ▼
+
+              ┌─────────────┐                   ┌─────────────┐
+              │   Review    │                   │  CodeChunk  │
+              └─────────────┘                   └─────────────┘
+```
+
+RAG pipeline
+
+```text
+┌─────────┐    ┌──────────────┐    ┌──────────────┐
+│ PR Diff │───►│  Embedding   │───►│  pgvector    │
+└─────────┘    └──────────────┘    └──────────────┘
+                                           │
+                                           ▼
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│ Gemini AI    │◄───│   Prompt     │◄───│   Context    │
+│   Review     │    │ Construction │    │  Retrieval   │
+└──────────────┘    └──────────────┘    └──────────────┘
+```
+
+## Chunking Strategy
+
+We use **Tree-sitter** to ensure chunks are semantically meaningful. 
+
+<Tabs>
+  <TabItem label="AST Chunking">
+    Chunks are created at function and class boundaries. This ensures that the AI receives complete logical units rather than arbitrary snippets of text.
+  </TabItem>
+  <TabItem label="Module Fallback">
+    If a file contains no functions or classes (e.g., a configuration file), the entire file is indexed as a single "Module" chunk.
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Large functions (currently >1000 lines) may exceed the embedding model's context window and require further recursive splitting in future versions.
+</Aside>

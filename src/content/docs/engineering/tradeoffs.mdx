@@ -1,0 +1,67 @@
+---
+title: "Tradeoffs"
+description: "Why we made certain architectural decisions."
+sidebar:
+  order: 2
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+
+Every architectural choice involves a tradeoff. Below are the key decisions made during the development of the AI Code Review platform.
+
+## 1. Inngest vs. BullMQ / Celery
+
+We chose **Inngest** for background job orchestration.
+
+- **Pros**: 
+  - **Serverless-Native**: Works perfectly on Vercel/Next.js without needing a persistent worker process.
+  - **Durable Execution**: Steps are automatically checkpointed.
+  - **No Infrastructure Management**: No Redis or RabbitMQ to manage.
+- **Cons**: 
+  - **Vendor Lock-in**: Harder to move away from Inngest compared to open-source BullMQ.
+  - **Latency**: Event-based triggering can have slightly higher latency than a dedicated polling worker.
+
+<LinkCard title="Inngest Documentation" href="https://www.inngest.com/docs" />
+
+## 2. pgvector vs. Dedicated Vector DB (Pinecone)
+
+We chose **pgvector** (Postgres) over a dedicated vector database.
+
+- **Pros**: 
+  - **Data Locality**: Code chunks, metadata, and embeddings live in the same table.
+  - **ACID Compliance**: Ensuring relational data and vectors are always in sync.
+  - **Simplified Stack**: One less service to maintain and pay for.
+- **Cons**: 
+  - **Scalability**: At massive scales (millions of chunks), specialized databases like Pinecone may offer better performance and indexing options (like HNSW).
+  - **Query Complexity**: Writing raw SQL for similarity search is more manual than using a dedicated vector SDK.
+
+<Aside type="caution">
+  As the repository count grows, we may need to migrate to a dedicated vector store if Postgres query latency becomes a bottleneck.
+</Aside>
+
+## 3. Gemini 2.0 Flash vs. GPT-4o
+
+We opted for **Gemini 2.0 Flash** for both embeddings and PR analysis.
+
+- **Pros**: 
+  - **Cost-Effective**: Significant price advantage for high-volume PR analysis.
+  - **Context Window**: Gemini's large context window (1M+ tokens) is ideal for reading large diffs and extensive code context.
+  - **Native Multi-modal**: Better support for generating complex structured outputs like Mermaid diagrams.
+- **Cons**: 
+  - **Model Stability**: Rapid version iterations (1.5 -> 2.0) can lead to subtle behavior changes.
+  - **Ecosystem**: OpenAI still has a larger library of pre-built integrations.
+
+## 4. AST-based Chunking vs. Token-based Splitting
+
+We use **Tree-sitter** for semantic chunking instead of simple character or token limits.
+
+- **Pros**: 
+  - **Semantic Integrity**: The AI always receives a complete function or class.
+  - **Contextual Accuracy**: Reduces the chance of the AI misinterpreting code due to missing lines.
+- **Cons**: 
+  - **Complexity**: Requires maintaining Tree-sitter grammars for multiple languages.
+  - **Processing Overhead**: AST parsing is more CPU-intensive than simple text splitting.
+
+<Aside type="tip">
+  We believe the improved AI accuracy from AST-aware context far outweighs the processing overhead.
+</Aside>

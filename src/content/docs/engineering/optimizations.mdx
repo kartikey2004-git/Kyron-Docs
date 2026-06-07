@@ -1,0 +1,83 @@
+---
+title: "Optimizations"
+description: "How we optimize for performance and scale."
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Building an AI-powered code review system at scale requires aggressive optimization, particularly around data ingestion and AI model interactions.
+
+## 1. Incremental Indexing
+
+Instead of re-indexing the entire repository on every change, we implement an incremental approach using Git diffs.
+
+<Steps>
+1.  **Commit Tracking**: The `Repository` model stores the `lastIndexedCommitSha`.
+2.  **GitHub Diff**: We use the GitHub `compare` API to get the list of files changed between the last indexed commit and the current HEAD.
+3.  **Targeted Invalidation**: Only chunks belonging to changed files are deleted and re-created.
+</Steps>
+
+```typescript
+// inngest/functions/index.ts
+const changedFiles = await getChangedFiles(
+  owner,
+  repo,
+  token,
+  repository.lastIndexedCommitSha,
+  effectiveCommitSha
+);
+
+if (changedFiles.length > 0) {
+  await prisma.codeChunk.deleteMany({
+    where: {
+      repoId: repository.id,
+      filePath: { in: changedFiles },
+    },
+  });
+}
+```
+
+## 2. Batch Embedding Generation
+
+Calling the Gemini embedding API for every single chunk would be slow and prone to rate limits. We process chunks in parallel batches.
+
+<Tabs>
+  <TabItem label="Current Implementation">
+    ```typescript
+    const EMBEDDING_BATCH_SIZE = 15;
+    const batches = chunkArray(processedChunks, EMBEDDING_BATCH_SIZE);
+
+    for (const batch of batches) {
+      const chunksWithEmbeddings = await Promise.all(
+        batch.map(async (chunk) => {
+          const embedding = await generateEmbedding(chunk.content);
+          return { ...chunk, embedding };
+        })
+      );
+      await bulkInsertCodeChunks(chunksWithEmbeddings);
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## 3. AST-Aware Retrieval
+
+By using **Tree-sitter** for chunking, we ensure that the retrieval system returns logical units (like an entire function) rather than random slices of a file. This significantly improves the quality of the AI review as it sees the full context of a function's implementation.
+
+## 4. Exponential Backoff & Retries
+
+All external API calls (Gemini, GitHub, Inngest) are wrapped in retry logic with exponential backoff and jitter to handle transient failures and rate limiting.
+
+<Aside type="tip">
+  We use a jittered backoff to prevent "thundering herd" problems when multiple jobs fail and retry simultaneously.
+</Aside>
+
+## 5. Background Task Durability
+
+By using **Inngest**, we gain "Durable Execution". If a worker crashes or a server restarts mid-job, Inngest remembers exactly which steps were completed and resumes from the last successful step.
+
+<Aside type="note">
+  This is critical for indexing large repositories, which can take several minutes and involve hundreds of API calls.
+</Aside>

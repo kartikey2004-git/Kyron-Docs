@@ -1,40 +1,76 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: "AI Code Review"
+description: "The ultimate AI-powered code review platform."
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  title: "Kryon : AI Code Review"
+  tagline: "Automated PR analysis, inline suggestions, and security detection at scale."
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: "Get Started"
+      link: /getting-started/setup
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
+      variant: secondary
+    - text: "View on GitHub"
+      link: https://github.com/kartikey2004-git/AI-Code-Review
       icon: external
-      variant: minimal
+      variant: secondary
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-## Next steps
+## System Architecture
+
+The system is built on a modern, event-driven architecture that separates code analysis from the web frontend.
+
+```text
+GitHub
+   │
+   ├── Push / Pull Request Events
+   ▼
+Webhook Handler (Next.js)
+   │
+   ▼
+Inngest Event Bus
+   │
+   ├── Repository Indexing Pipeline
+   │      ├── Clone Repository
+   │      ├── AST Chunking
+   │      ├── Generate Embeddings (Gemini)
+   │      └── Store Chunks + Vectors (Postgres + pgvector)
+   │
+   └── Pull Request Review Pipeline
+          ├── Fetch PR Diff
+          ├── Generate Embeddings
+          ├── Retrieve Relevant Context
+          ├── Generate AI Review (Gemini)
+          ├── Post Review Comment to GitHub
+          └── Store Review Results
+
+Dashboard (Next.js)
+   │
+   ▼
+PostgreSQL + pgvector
+```
+
+## Core Pillars
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="AI Engine">
+    Utilizes Gemini 2.0 Flash for deep architectural insights and automated PR reviews.
+  </Card>
+  <Card title="Background Processing">
+    Powered by **Inngest**, ensuring reliable, retriable execution of code indexing and analysis.
+  </Card>
+  <Card title="Vector Search">
+    Uses **pgvector** to retrieve relevant code context, enabling RAG (Retrieval-Augmented Generation) for code.
+  </Card>
+  <Card title="AST-Based Chunking" >
+    Uses **Tree-sitter** for intelligent code splitting, maintaining semantic context of functions and classes.
+  </Card>
 </CardGrid>
+
+<LinkCard
+  title="Explore the Architecture"
+  description="Learn how we process millions of lines of code with Inngest and pgvector."
+  href="/architecture/core-engine"
+/>

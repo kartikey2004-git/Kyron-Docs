@@ -1,0 +1,63 @@
+---
+title: "API Endpoints"
+description: "Documentation for the platform's REST and Webhook APIs."
+sidebar:
+  order: 2
+---
+
+import { Badge, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+##  GitHub Webhook Endpoint
+
+`POST /api/webhooks/github`
+
+Receives events from GitHub Apps. This is the primary trigger for repository indexing and PR reviews.
+
+<Badge text="Public" variant="success" />
+<Aside type="note">
+  Requests must be signed with a valid GitHub Webhook Secret.
+</Aside>
+
+#### Supported Events
+- `pull_request.opened` / `pull_request.synchronize`: Triggers a PR review.
+- `installation.created`: Triggers initial repository discovery.
+
+---
+
+## Inngest Service
+
+`GET/POST /api/inngest`
+
+The endpoint used by the Inngest Cloud/Dev Server to communicate with the application.
+
+<Tabs>
+  <TabItem label="GET">
+    Used for function discovery and health checks.
+  </TabItem>
+  <TabItem label="POST">
+    Used to invoke functions and report step completions.
+  </TabItem>
+</Tabs>
+
+---
+
+## Example Usage
+
+<Tabs>
+  <TabItem label="cURL">
+    ```bash
+    curl -X GET https://api.my-app.com/api/auth/session \
+      -H "Authorization: Bearer <token>"
+    ```
+  </TabItem>
+  <TabItem label="Fetch">
+    ```javascript
+    const response = await fetch('/api/auth/session', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+    ```
+  </TabItem>
+</Tabs>

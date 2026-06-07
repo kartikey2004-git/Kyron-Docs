@@ -1,0 +1,57 @@
+---
+title: "Contribution Guide"
+description: "How to contribute to the AI Code Review platform."
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+  We welcome contributions! Please follow our code of conduct and review our PR guidelines before submitting a pull request.
+</Aside>
+
+## Development Workflow
+
+Follow these steps to contribute a new feature or bug fix:
+
+<Steps>
+1.  **Fork the Repository**
+    Create a personal fork of the repository on GitHub.
+
+2.  **Create a Feature Branch**
+    ```bash
+    git checkout -b feature/my-new-feature
+    ```
+
+3.  **Implement Your Changes**
+    Ensure your code follows the existing style and is well-documented.
+
+4.  **Run Linters and Tests**
+    ```bash
+    bun lint
+    # bun test (when tests are added)
+    ```
+
+5.  **Submit a Pull Request**
+    Push your branch to your fork and open a PR against the `main` branch.
+</Steps>
+
+## PR Guidelines
+
+- **Atomic Commits**: Keep your commits small and focused on a single change.
+- **Descriptive Titles**: Use [Conventional Commits](https://www.conventionalcommits.org/) for your PR titles.
+- **Documentation**: If you're adding a new feature, update the relevant documentation in the `docs/` directory.
+
+## Adding Support for New Languages
+
+To add support for a new programming language in the AST Chunker:
+
+1.  Find the Tree-sitter WASM grammar for the language.
+2.  Add it to `ai-code-review/lib/wasm/`.
+3.  Register the language in `ai-code-review/lib/tree-sitter.ts`.
+4.  Update the `TARGET_NODE_TYPES` in `ai-code-review/lib/ast-chunker.ts` if necessary.
+
+<Aside type="tip">
+  Testing new languages requires re-indexing a repository that contains files in that language. Use the Inngest Dev Server to manually trigger a `repository.connected` event.
+</Aside>

@@ -1,0 +1,61 @@
+---
+title: "Folder Structure"
+description: "A comprehensive map of the repository."
+sidebar:
+  order: 1
+---
+
+import { FileTree, Icon } from '@astrojs/starlight/components';
+
+Understanding the organization of the codebase is key to effective contribution.
+
+## Root Directory
+
+<FileTree>
+- ai-code-review/ <Icon name="seti:folder-src" /> The main Next.js application.
+- AI-Code-Review/ <Icon name="seti:folder-docs" /> This documentation site (Astro Starlight).
+- prompt.md <Icon name="seti:markdown" /> Master documentation prompt.
+- codebase-prompt.md <Icon name="seti:markdown" /> Codebase indexing prompt.
+</FileTree>
+
+## Application Architecture (`ai-code-review/`)
+
+<FileTree>
+- app/
+  - (auth)/login/ Authentication pages.
+  - api/
+    - auth/ Better Auth endpoints.
+    - inngest/ Inngest serve handler.
+    - webhooks/github/ GitHub Webhook receiver.
+  - dashboard/ Core user interface.
+- components/
+  - ui/ Shadcn UI components.
+  - landing/ Landing page sections.
+  - providers/ Context providers (Theme, Query).
+- inngest/
+  - client.ts Inngest client configuration.
+  - functions/
+    - index.ts **Repository indexing engine.**
+    - review.ts **PR analysis & review engine.**
+- lib/
+  - ast-chunker.ts Tree-sitter parsing logic.
+  - embedding.ts Gemini embedding integration.
+  - db.ts Prisma client.
+  - tree-sitter.ts WASM grammar loader.
+- modules/
+  - ai/ Vector retrieval & prompt logic.
+  - github/ GitHub API wrappers.
+- prisma/
+  - schema.prisma **Database & Vector schema.**
+</FileTree>
+
+## Key File Descriptions
+
+```text
+| Path | Purpose |
+| :--- | :--- |
+| `ai-code-review/prisma/schema.prisma` | Defines the data model and the `vector` type for pgvector. |
+| `ai-code-review/inngest/functions/review.ts` | The core RAG pipeline for generating AI reviews. |
+| `ai-code-review/lib/ast-chunker.ts` | Uses Tree-sitter to split code into logical chunks. |
+| `ai-code-review/app/api/webhooks/github/route.ts` | The entry point for all GitHub events. |
+```

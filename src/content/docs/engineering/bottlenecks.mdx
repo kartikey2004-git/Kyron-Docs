@@ -1,0 +1,58 @@
+---
+title: "Bottlenecks"
+description: "Identifying and mitigating system limitations."
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+As the platform scales to larger repositories and more frequent pull requests, several technical bottlenecks emerge.
+
+## 1. Massive Monorepo PRs
+
+When a PR touches hundreds of files (e.g., a global dependency update or refactor), the diff can exceed the context window of even the largest LLMs.
+
+- **Risk**: The AI may miss critical changes or provide shallow feedback if the diff is truncated.
+- **Mitigation**: We are exploring **diff chunking**, where the AI analyzes sub-sections of a large PR independently and then synthesizes a final review.
+
+<Aside type="danger">
+  Currently, PR diffs larger than 128KB may lead to degraded AI performance or timeouts.
+</Aside>
+
+## 2. Embedding API Rate Limits
+
+Generating embeddings for every function in a large repository (e.g., 10,000+ chunks) can quickly hit Google Gemini API rate limits.
+
+- **Risk**: Indexing jobs may stall or fail repeatedly.
+- **Mitigation**: We implement **exponential backoff with jitter** and process embeddings in batches of 15. For very large repos, we may need to implement a **priority queue** for indexing.
+
+## 3. Vector Similarity Search at Scale
+
+While **pgvector** is excellent for small to medium repositories, its performance can degrade as the number of chunks reaches the millions.
+
+- **Risk**: Increased latency in the `retrieveContext` step of the PR review job.
+- **Mitigation**: Implement **HNSW (Hierarchical Navigable Small World)** indexes in Postgres to speed up approximate nearest neighbor (ANN) searches.
+
+```sql
+-- Future optimization:
+CREATE INDEX ON "CodeChunk" USING hnsw (embedding vector_cosine_ops);
+```
+
+## 4. Cold Starts and Serverless Timeouts
+
+Running AST parsing and embedding generation within a serverless function (Next.js API route or Inngest worker on Vercel) can hit the 10-30s execution limit.
+
+- **Risk**: Incomplete indexing or failed PR reviews.
+- **Mitigation**: We utilize **Inngest's step orchestration**. By breaking the job into many small `step.run` calls, each step has its own timeout window, allowing the overall job to run for much longer than a single serverless invocation.
+
+## 5. Tree-sitter Language Support
+
+Currently, the system only supports languages with available Tree-sitter grammars in the `@/lib/tree-sitter` configuration.
+
+- **Risk**: Unsupported files (e.g., Go, Rust, or niche languages) are indexed as single "Module" chunks, losing the benefits of semantic chunking.
+- **Mitigation**: Systematically adding more grammars and providing a generic **regex-based fall-back** for logical block detection.
+
+<Aside type="caution">
+  Always verify that the target language grammar is installed and configured in `ai-code-review/lib/tree-sitter.ts`.
+</Aside>

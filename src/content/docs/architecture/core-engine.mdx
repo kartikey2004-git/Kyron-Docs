@@ -1,0 +1,85 @@
+---
+title: "Core Engine"
+description: "Deep dive into the background processing and event-driven architecture."
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside, FileTree, Code } from '@astrojs/starlight/components';
+
+The heart of the AI Code Review platform is its background engine, built on **Inngest**. This architecture ensures that computationally expensive tasks like AST parsing, embedding generation, and AI analysis do not block the main application thread.
+
+## Event-Driven Workflow
+
+The system reacts to events from GitHub and internal state changes.
+
+## Review Pipeline
+
+```text
+┌─────────┐     ┌─────────────┐     ┌─────────┐     ┌────────┐     ┌─────────┐
+│ GitHub  │ ──► │ Webhook API │ ──► │ Inngest │ ──► │ Worker │ ──► │ GitHub  │
+└─────────┘     └─────────────┘     └─────────┘     └────────┘     └─────────┘
+```
+
+```text
+┌─────────┐    ┌────────────────┐    ┌────────────────┐
+│ PR Diff │───►│   Embedding    │───►│ Vector Search  │
+└─────────┘    │   Generation   │    │   (pgvector)   │
+               └────────────────┘    └────────────────┘
+                                             │
+                                             ▼
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│ Gemini Review  │◄───│ Prompt Builder │◄───│ Relevant Code  │
+│   Generation   │    └────────────────┘    │    Context     │
+└────────────────┘                          └────────────────┘
+```
+```
+Worker Responsibilities
+
+• Fetch PR Diff
+• Generate Query Embedding
+• Search Similar Code Chunks
+• Retrieve Context
+• Build Prompt
+• Generate AI Review
+• Save Review
+• Post GitHub Comment
+```
+
+## Background Job Structure
+
+Jobs are organized into modular functions within the `inngest/functions` directory.
+
+<FileTree>
+- inngest/
+  - client.ts (Inngest client config)
+  - functions/
+    - index.ts (Repository indexing logic)
+    - review.ts (PR analysis & AI review)
+</FileTree>
+
+### Indexing Engine 
+
+When a repository is first connected, the `index-repo` function performs a full scan:
+
+<Steps>
+1.  **Incremental Diff Analysis**: Uses the GitHub API to identify changed files since the last indexed commit.
+2.  **AST Chunking**: Employs **Tree-sitter** to parse source code into semantic chunks (functions, classes).
+3.  **Embedding Generation**: Chunks are sent to the `gemini-embedding-001` model to generate 768-dimensional vectors.
+4.  **Vector Persistence**: Chunks and their embeddings are stored in PostgreSQL using the `vector` type.
+</Steps>
+
+### Review Engine 
+
+Triggered on every PR, this function implements a RAG (Retrieval-Augmented Generation) pipeline:
+
+<Steps>
+1.  **Context Retrieval**: The PR diff is used as a query to find the most relevant chunks from the indexed repository.
+2.  **Prompt Engineering**: A complex prompt is constructed combining the PR diff, retrieved context, and specific review instructions.
+3.  **AI Generation**: Uses **Gemini 2.0 Flash** to generate a structured review, including a Mermaid sequence diagram of the changes.
+4.  **GitHub Integration**: The final review is posted back to GitHub as a single, comprehensive comment.
+</Steps>
+
+<Aside type="tip">
+  The use of `step.run` in Inngest allows for automatic retries of individual steps (like API calls to Gemini) without re-running the entire job.
+</Aside>
